@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;--text:#e6edf3;--text2:#8b949e;--green:#3fb950;--red:#f85149;--accent:#58a6ff}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:100px}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:160px}
 .header{padding:20px 16px 14px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
 .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .app-title{font-size:16px;font-weight:700;color:var(--text2)}
@@ -28,9 +28,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .stat-label{font-size:11px;color:var(--text2)}
 .stat-value{font-size:14px;font-weight:600;margin-top:3px}
 .del-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--border);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:6px}
-.fab{position:fixed;bottom:28px;right:20px;width:58px;height:58px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 4px 24px rgba(88,166,255,.45);display:flex;align-items:center;justify-content:center;z-index:200}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end}
-.overlay.open{display:flex}
+.fab{position:fixed;bottom:100px;right:20px;width:58px;height:58px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 4px 24px rgba(88,166,255,.45);display:flex;align-items:center;justify-content:center;z-index:200}
+.overlay{display:none;pointer-events:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end}
+.overlay.open{display:flex;pointer-events:auto}
 .modal{background:var(--surface);border-radius:22px 22px 0 0;padding:24px 20px 44px;width:100%;max-height:90vh;overflow-y:auto}
 .modal-title{font-size:18px;font-weight:700;margin-bottom:20px}
 .form-group{margin-bottom:16px}
@@ -124,7 +124,7 @@ function openModal(){document.getElementById('overlay').classList.add('open');}
 function closeModal(){document.getElementById('overlay').classList.remove('open');['iTicker','iName','iQty','iAvg'].forEach(id=>document.getElementById(id).value='');}
 function selectType(t,el){selType=t;document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');const lT=document.getElementById('lTicker'),iT=document.getElementById('iTicker'),hT=document.getElementById('hTicker'),lP=document.getElementById('lPrice'),hP=document.getElementById('hPrice');if(t==='us'){lT.textContent='티커 (예: AAPL, NVDA, TSLA)';iT.placeholder='AAPL';hT.textContent='미국 주식 심볼';lP.textContent='평균 매수가 ($)';hP.textContent='달러($)로 입력';}else if(t==='kr'){lT.textContent='종목코드 6자리';iT.placeholder='005930';hT.textContent='예: 005930(삼성), 000660(SK하이닉스)';lP.textContent='평균 매수가 (₩)';hP.textContent='원화(₩)로 입력';}else{lT.textContent='코인 심볼';iT.placeholder='BTC';hT.textContent='예: BTC, ETH, XRP, SOL';lP.textContent='평균 매수가 (₩)';hP.textContent='원화(₩)로 입력';}}
 function addHolding(){const ticker=document.getElementById('iTicker').value.trim().toUpperCase();const name=document.getElementById('iName').value.trim();const qty=parseFloat(document.getElementById('iQty').value);const avg=parseFloat(document.getElementById('iAvg').value);if(!ticker||isNaN(qty)||qty<=0||isNaN(avg)||avg<=0){alert('티커, 수량, 매수가를 모두 입력해주세요.');return;}portfolio.push({id:Date.now().toString(),ticker,name,type:selType,qty,avgPrice:avg});localStorage.setItem('domino_portfolio',JSON.stringify(portfolio));closeModal();refresh();}
-function del(id){if(!confirm('삭제할까요?'))return;portfolio=portfolio.filter(h=><h.id>!==id);delete prices[id];localStorage.setItem('domino_portfolio',<JSON.st>ringify(portfolio));render();}
+function del(id){if(!confirm('삭제할까요?'))return;portfolio=portfolio.filter(h=><h.id>!==id);delete prices[id];localStorage.setItem('domino_portfolio',JSON.stringify(portfolio));render();}
 </script>
 </body>
 </html>
