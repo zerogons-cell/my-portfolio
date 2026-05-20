@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>내 포트폴리오</title>
+<style>
+:root{--bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;--text:#e6edf3;--text2:#8b949e;--green:#3fb950;--red:#f85149;--accent:#58a6ff}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:100px}
+.header{padding:20px 16px 14px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.app-title{font-size:16px;font-weight:700;color:var(--text2)}
+.refresh-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--text2);padding:5px 10px;font-size:12px;cursor:pointer}
+.total-value{font-size:32px;font-weight:800;color:var(--text);letter-spacing:-1px}
+.total-pnl{font-size:15px;margin-top:5px;font-weight:600}
+.refresh-info{font-size:11px;color:var(--text2);margin-top:6px}
+.positive{color:var(--green)}.negative{color:var(--red)}
+.section-title{font-size:12px;color:var(--text2);padding:12px 16px 6px;text-transform:uppercase;letter-spacing:.5px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 12px 10px;position:relative}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start}
+.ticker{font-size:17px;font-weight:700}
+.name{font-size:12px;color:var(--text2);margin-top:2px}
+.price-area{text-align:right}
+.price-main{font-size:16px;font-weight:700}
+.price-krw{font-size:11px;color:var(--text2);margin-top:2px}
+.card-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.stat-label{font-size:11px;color:var(--text2)}
+.stat-value{font-size:14px;font-weight:600;margin-top:3px}
+.del-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--border);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:6px}
+.fab{position:fixed;bottom:28px;right:20px;width:58px;height:58px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 4px 24px rgba(88,166,255,.45);display:flex;align-items:center;justify-content:center;z-index:200}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:22px 22px 0 0;padding:24px 20px 44px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px}
+.form-group{margin-bottom:16px}
+.form-label{font-size:13px;color:var(--text2);margin-bottom:7px;display:block}
+.form-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:13px 14px;color:var(--text);font-size:16px;outline:none}
+.form-input:focus{border-color:var(--accent)}
+.type-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type-btn{padding:11px 4px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center}
+.type-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1)}
+.submit-btn{width:100%;padding:15px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px}
+.cancel-btn{width:100%;padding:12px;background:none;border:none;color:var(--text2);font-size:15px;cursor:pointer;margin-top:6px}
+.hint{font-size:11px;color:var(--text2);margin-top:5px}
+.empty{color:var(--text2);text-align:center;padding:40px 20px;line-height:1.7}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-top">
+    <div class="app-title">📈 내 포트폴리오</div>
+    <button class="refresh-btn" onclick="refresh()">새로고침</button>
+  </div>
+  <div class="total-value" id="totalValue">₩ --</div>
+  <div class="total-pnl" id="totalPnl"></div>
+  <div class="refresh-info" id="refreshInfo"><span class="spinner"></span>가격 로딩 중...</div>
+</div>
+<div id="holdingsContainer"></div>
+<button class="fab" onclick="openModal()">+</button>
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-title">종목 추가</div>
+    <div class="form-group">
+      <label class="form-label">종류</label>
+      <div class="type-row">
+        <div class="type-btn active" onclick="selectType('us',this)">🇺🇸 미국주식</div>
+        <div class="type-btn" onclick="selectType('kr',this)">🇰🇷 한국주식</div>
+        <div class="type-btn" onclick="selectType('crypto',this)">₿ 코인</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="lTicker">티커 (예: AAPL)</label>
+      <input class="form-input" id="iTicker" placeholder="AAPL" autocapitalize="characters">
+      <div class="hint" id="hTicker">미국 주식 심볼을 입력하세요</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">종목명 (선택)</label>
+      <input class="form-input" id="iName" placeholder="애플">
+    </div>
+    <div class="form-group">
+      <label class="form-label">보유 수량</label>
+      <input class="form-input" id="iQty" type="number" placeholder="10" min="0" step="any">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="lPrice">평균 매수가</label>
+      <input class="form-input" id="iAvg" type="number" placeholder="150" min="0" step="any">
+      <div class="hint" id="hPrice">달러($)로 입력하세요</div>
+    </div>
+    <button class="submit-btn" onclick="addHolding()">추가하기</button>
+    <button class="cancel-btn" onclick="closeModal()">취소</button>
+  </div>
+</div>
+<script>
+let portfolio=JSON.parse(localStorage.getItem('domino_portfolio')||'[]');
+let prices={},usdKrw=1380,selType='us',loading=false;
+const PROXY='<https://api.allorigins.win/raw?url=>';
+async function fetchYahoo(ticker){
+  for(const base of['<https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']>){
+    try{const u=base+`/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1m&range=1d`;
+    const r=await fetch(PROXY+encodeURIComponent(u),{cache:'no-store'});
+    const d=await r.json();const p=d?.chart?.result?.[0]?.meta?.regularMarketPrice;if(p)return p;}catch(e){}}return null;}
+async function fetchUpbit(coin){try{const r=await fetch(`<https://api.upbit.com/v1/ticker?markets=KRW-${coin.toUpperCase()}`>);const d=await r.json();return d?.[0]?.trade_price??null;}catch(e){return null;}}
+async function loadUsdKrw(){const p=await fetchYahoo('USDKRW=X');if(p&&p>100){usdKrw=p;return;}const p2=await fetchYahoo('KRW=X');if(p2&&p2<1)usdKrw=1/p2;}
+async function loadPrices(){await loadUsdKrw();await Promise.all(portfolio.map(async h=>{let p=null;if(h.type==='crypto')p=await fetchUpbit(h.ticker);else if(h.type==='kr'){p=await fetchYahoo(h.ticker+'.KS');if(!p)p=await fetchYahoo(h.ticker+'.KQ');}else p=await fetchYahoo(h.ticker);if(p!==null)prices[<h.id>]=p;}));}
+function toKrw(h,p){return h.type==='us'?p*usdKrw:p;}
+function costKrw(h){return h.type==='us'?h.avgPrice*usdKrw:h.avgPrice;}
+function fmtKrw(v){const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억원';return Math.round(v).toLocaleString('ko-KR')+'원';}
+function fmtPrice(h,p){if(h.type==='us')return'$'+p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});if(p>=100)return'₩'+Math.round(p).toLocaleString('ko-KR');return'₩'+p.toFixed(4);}
+function render(){const c=document.getElementById('holdingsContainer');if(!portfolio.length){c.innerHTML='<div class="empty">보유 종목이 없어요.<br>+ 버튼을 눌러 추가하세요.</div>';document.getElementById('totalValue').textContent='₩ 0';document.getElementById('totalPnl').textContent='';return;}
+const groups={us:'🇺🇸 미국 주식',kr:'🇰🇷 한국 주식',crypto:'₿ 암호화폐'};let html='',totalVal=0,totalCost=0;
+for(const[type,label]of Object.entries(groups)){const items=portfolio.filter(h=>h.type===type);if(!items.length)continue;html+=`<div class="section-title">${label}</div>`;
+for(const h of items){const rawPrice=prices[<h.id>]??null;const krwPrice=rawPrice?toKrw(h,rawPrice):null;const val=krwPrice?krwPrice*h.qty:null;const cost=costKrw(h)*h.qty;const pnl=val!==null?val-cost:null;const pct=pnl!==null&&cost?pnl/cost*100:null;if(val){totalVal+=val;totalCost+=cost;}
+const cls=pnl>=0?'positive':'negative';const sign=pnl>=0?'+':'';
+html+=`<div class="card"><button class="del-btn" onclick="del('${<h.id>}')">×</button><div class="card-top"><div><div><span class="ticker">${h.ticker}</span></div><div class="name">${h.name||''}</div></div><div class="price-area"><div class="price-main">${rawPrice?fmtPrice(h,rawPrice):'<span class="spinner"></span>'}</div>${krwPrice?`<div class="price-krw">${fmtKrw(krwPrice)}</div>`:''}</div></div><div class="card-stats"><div><div class="stat-label">평가금액</div><div class="stat-value">${val?fmtKrw(val):'--'}</div></div><div><div class="stat-label">손익</div><div class="stat-value ${cls}">${pnl!==null?sign+fmtKrw(pnl):'--'}</div></div><div><div class="stat-label">수익률</div><div class="stat-value ${cls}">${pct!==null?sign+pct.toFixed(2)+'%':'--'}</div></div><div><div class="stat-label">보유수량</div><div class="stat-value">${h.qty}</div></div></div></div>`;}}
+c.innerHTML=html;const tPnl=totalVal-totalCost;const tPct=totalCost?tPnl/totalCost*100:0;const tcls=tPnl>=0?'positive':'negative';const ts=tPnl>=0?'+':'';
+document.getElementById('totalValue').textContent='₩ '+Math.round(totalVal).toLocaleString('ko-KR');
+document.getElementById('totalPnl').innerHTML=`<span class="${tcls}">${ts}${fmtKrw(tPnl)} (${ts}${tPct.toFixed(2)}%)</span>`;}
+async function refresh(){if(loading)return;loading=true;document.getElementById('refreshInfo').innerHTML='<span class="spinner"></span>업데이트 중...';await loadPrices();render();const now=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('refreshInfo').textContent=`마지막 업데이트: ${now}  |  1$ ≈ ₩${Math.round(usdKrw).toLocaleString()}`;loading=false;}
+setInterval(refresh,15000);refresh();
+function openModal(){document.getElementById('overlay').classList.add('open');}
+function closeModal(){document.getElementById('overlay').classList.remove('open');['iTicker','iName','iQty','iAvg'].forEach(id=>document.getElementById(id).value='');}
+function selectType(t,el){selType=t;document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');const lT=document.getElementById('lTicker'),iT=document.getElementById('iTicker'),hT=document.getElementById('hTicker'),lP=document.getElementById('lPrice'),hP=document.getElementById('hPrice');if(t==='us'){lT.textContent='티커 (예: AAPL, NVDA, TSLA)';iT.placeholder='AAPL';hT.textContent='미국 주식 심볼';lP.textContent='평균 매수가 ($)';hP.textContent='달러($)로 입력';}else if(t==='kr'){lT.textContent='종목코드 6자리';iT.placeholder='005930';hT.textContent='예: 005930(삼성), 000660(SK하이닉스)';lP.textContent='평균 매수가 (₩)';hP.textContent='원화(₩)로 입력';}else{lT.textContent='코인 심볼';iT.placeholder='BTC';hT.textContent='예: BTC, ETH, XRP, SOL';lP.textContent='평균 매수가 (₩)';hP.textContent='원화(₩)로 입력';}}
+function addHolding(){const ticker=document.getElementById('iTicker').value.trim().toUpperCase();const name=document.getElementById('iName').value.trim();const qty=parseFloat(document.getElementById('iQty').value);const avg=parseFloat(document.getElementById('iAvg').value);if(!ticker||isNaN(qty)||qty<=0||isNaN(avg)||avg<=0){alert('티커, 수량, 매수가를 모두 입력해주세요.');return;}portfolio.push({id:Date.now().toString(),ticker,name,type:selType,qty,avgPrice:avg});localStorage.setItem('domino_portfolio',JSON.stringify(portfolio));closeModal();refresh();}
+function del(id){if(!confirm('삭제할까요?'))return;portfolio=portfolio.filter(h=><h.id>!==id);delete prices[id];localStorage.setItem('domino_portfolio',<JSON.st>ringify(portfolio));render();}
+</script>
+</body>
+</html>
