@@ -31,17 +31,19 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .fab{position:fixed;bottom:100px;right:20px;width:58px;height:58px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 4px 24px rgba(88,166,255,.45);display:flex;align-items:center;justify-content:center;z-index:200}
 .overlay{display:none;pointer-events:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end}
 .overlay.open{display:flex;pointer-events:auto}
-.modal{background:var(--surface);border-radius:22px 22px 0 0;padding:24px 20px 44px;width:100%;max-height:90vh;overflow-y:auto}
+.modal{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-height:85vh;display:flex;flex-direction:column}
+.modal-scroll{padding:24px 20px 10px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.modal-actions{padding:12px 20px 44px;background:var(--surface);border-top:1px solid var(--border)}
 .modal-title{font-size:18px;font-weight:700;margin-bottom:20px}
 .form-group{margin-bottom:16px}
 .form-label{font-size:13px;color:var(--text2);margin-bottom:7px;display:block}
 .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:13px 14px;color:var(--text);font-size:16px;outline:none}
 .form-input:focus{border-color:var(--accent)}
 .type-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.type-btn{padding:11px 4px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center}
+.type-btn{padding:11px 4px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;touch-action:manipulation}
 .type-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1)}
-.submit-btn{width:100%;padding:15px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px}
-.cancel-btn{width:100%;padding:12px;background:none;border:none;color:var(--text2);font-size:15px;cursor:pointer;margin-top:6px}
+.submit-btn{width:100%;padding:15px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.cancel-btn{width:100%;padding:12px;background:none;border:none;color:var(--text2);font-size:15px;cursor:pointer;margin-top:6px;touch-action:manipulation}
 .hint{font-size:11px;color:var(--text2);margin-top:5px}
 .empty{color:var(--text2);text-align:center;padding:40px 20px;line-height:1.7}
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:6px;vertical-align:middle}
@@ -62,35 +64,39 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <button class="fab" onclick="openModal()">+</button>
 <div class="overlay" id="overlay">
   <div class="modal">
-    <div class="modal-title">종목 추가</div>
-    <div class="form-group">
-      <label class="form-label">종류</label>
-      <div class="type-row">
-        <div class="type-btn active" onclick="selectType('us',this)">🇺🇸 미국주식</div>
-        <div class="type-btn" onclick="selectType('kr',this)">🇰🇷 한국주식</div>
-        <div class="type-btn" onclick="selectType('crypto',this)">₿ 코인</div>
+    <div class="modal-scroll">
+      <div class="modal-title">종목 추가</div>
+      <div class="form-group">
+        <label class="form-label">종류</label>
+        <div class="type-row">
+          <div class="type-btn active" onclick="selectType('us',this)">🇺🇸 미국주식</div>
+          <div class="type-btn" onclick="selectType('kr',this)">🇰🇷 한국주식</div>
+          <div class="type-btn" onclick="selectType('crypto',this)">₿ 코인</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="lTicker">티커 (예: AAPL)</label>
+        <input class="form-input" id="iTicker" placeholder="AAPL" autocapitalize="characters">
+        <div class="hint" id="hTicker">미국 주식 심볼을 입력하세요</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">종목명 (선택)</label>
+        <input class="form-input" id="iName" placeholder="애플">
+      </div>
+      <div class="form-group">
+        <label class="form-label">보유 수량</label>
+        <input class="form-input" id="iQty" type="number" placeholder="10" min="0" step="any">
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="lPrice">평균 매수가</label>
+        <input class="form-input" id="iAvg" type="number" placeholder="150" min="0" step="any">
+        <div class="hint" id="hPrice">달러($)로 입력하세요</div>
       </div>
     </div>
-    <div class="form-group">
-      <label class="form-label" id="lTicker">티커 (예: AAPL)</label>
-      <input class="form-input" id="iTicker" placeholder="AAPL" autocapitalize="characters">
-      <div class="hint" id="hTicker">미국 주식 심볼을 입력하세요</div>
+    <div class="modal-actions">
+      <button class="submit-btn" onclick="addHolding()">추가하기</button>
+      <button class="cancel-btn" onclick="closeModal()">취소</button>
     </div>
-    <div class="form-group">
-      <label class="form-label">종목명 (선택)</label>
-      <input class="form-input" id="iName" placeholder="애플">
-    </div>
-    <div class="form-group">
-      <label class="form-label">보유 수량</label>
-      <input class="form-input" id="iQty" type="number" placeholder="10" min="0" step="any">
-    </div>
-    <div class="form-group">
-      <label class="form-label" id="lPrice">평균 매수가</label>
-      <input class="form-input" id="iAvg" type="number" placeholder="150" min="0" step="any">
-      <div class="hint" id="hPrice">달러($)로 입력하세요</div>
-    </div>
-    <button class="submit-btn" onclick="addHolding()">추가하기</button>
-    <button class="cancel-btn" onclick="closeModal()">취소</button>
   </div>
 </div>
 
