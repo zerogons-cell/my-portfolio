@@ -142,11 +142,11 @@ async function fetchT(url, ms=7000) {
   finally { clearTimeout(id); }
 }
 const PROXIES = [
-  u => `<https://corsproxy.io/?${encodeURIComponent(u)}`>,
-  u => `<https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`>,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
 ];
 async function fetchYahoo(ticker) {
-  const bases = ['<https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']>;
+  const bases = ['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com'];
   for (const px of PROXIES) for (const base of bases) {
     try {
       const r = await fetchT(px(base+`/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1m&range=1d`));
@@ -158,7 +158,7 @@ async function fetchYahoo(ticker) {
 }
 async function fetchUpbit(coin) {
   try {
-    const d = await (await fetchT(`<https://api.upbit.com/v1/ticker?markets=KRW-${coin.toUpperCase()}`>)).json();
+    const d = await (await fetchT(`https://api.upbit.com/v1/ticker?markets=KRW-${coin.toUpperCase()}`)).json();
     return d?.[0]?.trade_price ?? null;
   } catch(e) { return null; }
 }
@@ -178,7 +178,7 @@ async function loadPrices() {
       if (h.type==='crypto') p = await fetchUpbit(h.ticker);
       else if (h.type==='kr') { p = await fetchYahoo(h.ticker+'.KS'); if (!p) p = await fetchYahoo(h.ticker+'.KQ'); }
       else p = await fetchYahoo(h.ticker);
-      if (p !== null) prices[<h.id>] = p;
+      if (p !== null) prices[h.id] = p;
     } catch(e) {}
   }));
 }
@@ -204,7 +204,7 @@ function render() {
   const groups = {us:'🇺🇸 미국 주식', kr:'🇰🇷 한국 주식', crypto:'₿ 암호화폐'};
   let html = '', totalVal = 0, totalCost = 0;
   function getSortVal(h) {
-    const raw = prices[<h.id>] ?? null;
+    const raw = prices[h.id] ?? null;
     const krw = raw ? toKrw(h, raw) : null;
     const val = krw ? krw * h.qty : null;
     const cost = costKrw(h) * h.qty;
@@ -232,17 +232,17 @@ function render() {
     const label = typeOrAll==='all' ? null : groups[typeOrAll];
     if (label) html += `<div class="section-title">${label}</div>`;
     for (const h of items) {
-      const rawPrice=prices[<h.id>]??null, krwPrice=rawPrice?toKrw(h,rawPrice):null;
+      const rawPrice=prices[h.id]??null, krwPrice=rawPrice?toKrw(h,rawPrice):null;
       const val=krwPrice?krwPrice*h.qty:null, cost=costKrw(h)*h.qty;
       const pnl=val!==null?val-cost:null, pct=pnl!==null&&cost?pnl/cost*100:null;
       if (val){totalVal+=val;totalCost+=cost;}
       const cls=(pnl??0)>=0?'positive':'negative', sign=(pnl??0)>=0?'+':'';
-      const isOpen=expanded.has(<h.id>);
+      const isOpen=expanded.has(h.id);
       const pnlPctStr=pct!==null?`${sign}${pct.toFixed(2)}%`:(rawPrice?'+0.00%':'--');
       const pnlAmtStr=pnl!==null?`${sign}${fmtKrw(pnl)}`:'<span class="spinner"></span>';
       const avgStr=h.type==='us'?`$${h.avgPrice.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`:fmtKrw(h.avgPrice);
       const qtyStr=`${h.qty}${h.type==='kr'?'주':h.type==='us'?'주':'개'}`;
-      html+=`<div class="card${isOpen?' open':''}" id="card-${<h.id>}" onclick="toggleCard('${<h.id>}')">
+      html+=`<div class="card${isOpen?' open':''}" id="card-${h.id}" onclick="toggleCard('${h.id}')">
         <div class="card-min">
           <div class="c-left"><div class="ticker">${h.ticker}</div><div class="c-name">${h.name||''}</div></div>
           <div class="c-right">
@@ -260,8 +260,8 @@ function render() {
             <div class="dg-item"><div class="dg-label">손익금</div><div class="dg-value ${cls}">${pnl!==null?sign+fmtKrw(pnl):'--'}</div></div>
           </div>
           <div class="card-actions">
-            <button class="act-edit" onclick="event.stopPropagation();openEdit('${<h.id>}')">✏️ 수정</button>
-            <button class="act-del"  onclick="event.stopPropagation();del('${<h.id>}')">🗑️ 삭제</button>
+            <button class="act-edit" onclick="event.stopPropagation();openEdit('${h.id}')">✏️ 수정</button>
+            <button class="act-del"  onclick="event.stopPropagation();del('${h.id}')">🗑️ 삭제</button>
           </div>
         </div>
       </div>`;
@@ -315,7 +315,7 @@ async function lookupName(){
   const nameEl=document.getElementById('iName'),statusEl=document.getElementById('nameStatus');
   if(!ticker){statusEl.textContent='';return;}
   statusEl.textContent='조회 중...';
-  const bases=['<https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']>;
+  const bases=['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com'];
   async function trySymbol(sym){
     for(const px of PROXIES)for(const base of bases){
       try{
@@ -332,7 +332,7 @@ async function lookupName(){
     if(selType==='us')name=await trySymbol(ticker);
     else if(selType==='kr'){name=await trySymbol(ticker+'.KS');if(!name)name=await trySymbol(ticker+'.KQ');}
     else{
-      try{const list=await(await fetchT('<https://api.upbit.com/v1/market/all?isDetails=false',5000>)).json();const f=list.find(m=>m.market===`KRW-${ticker}`);if(f)name=f.korean_name;}catch(e){}
+      try{const list=await(await fetchT('https://api.upbit.com/v1/market/all?isDetails=false',5000)).json();const f=list.find(m=>m.market===`KRW-${ticker}`);if(f)name=f.korean_name;}catch(e){}
       if(!name)name=await trySymbol(ticker+'-USD');
     }
     if(name){nameEl.value=name;statusEl.textContent='✓ 자동완성';setTimeout(()=>statusEl.textContent='',2000);}
@@ -354,7 +354,7 @@ function openModal(){
   document.getElementById('overlay').classList.add('open');
 }
 function openEdit(id){
-  const h=portfolio.find(h=><h.id>===id);if(!h)return;
+  const h=portfolio.find(h=>h.id===id);if(!h)return;
   editId=id;
   document.querySelector('.modal-title').textContent='종목 수정';
   document.querySelector('.submit-btn').textContent='수정 완료';
@@ -397,7 +397,7 @@ function addHolding(){
   const avg=parseFloat(document.getElementById('iAvg').value);
   if(!ticker||isNaN(qty)||qty<=0||isNaN(avg)||avg<=0){alert('티커, 수량, 매수가를 모두 입력해주세요.');return;}
   if(editId){
-    const idx=portfolio.findIndex(h=><h.id>===editId);
+    const idx=portfolio.findIndex(h=>h.id===editId);
     if(idx!==-1){portfolio[idx].qty=qty;portfolio[idx].avgPrice=avg;portfolio[idx].name=name;}
   }else{
     portfolio.push({id:Date.now().toString(),ticker,name,type:selType,qty,avgPrice:avg});
@@ -408,7 +408,7 @@ function addHolding(){
 function del(id){
   if(!confirm('삭제할까요?'))return;
   expanded.delete(id);
-  portfolio=portfolio.filter(h=><h.id>!==id);
+  portfolio=portfolio.filter(h=>h.id!==id);
   delete prices[id];
   localStorage.setItem('domino_portfolio',JSON.stringify(portfolio));
   render();
