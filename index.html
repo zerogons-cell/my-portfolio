@@ -52,7 +52,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <div class="header">
   <div class="header-top">
     <div class="app-title">📈 내 포트폴리오</div>
-    <button class="refresh-btn" onclick="refresh()">새로고침</button>
+    <button class="refresh-btn" onclick="doRefresh()">새로고침</button>
   </div>
   <div class="total-value" id="totalValue">₩ --</div>
   <div class="total-pnl" id="totalPnl"></div>
@@ -93,38 +93,194 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="cancel-btn" onclick="closeModal()">취소</button>
   </div>
 </div>
+
 <script>
-let portfolio=JSON.parse(localStorage.getItem('domino_portfolio')||'[]');
-let prices={},usdKrw=1380,selType='us',loading=false;
-const PROXY='https://api.allorigins.win/raw?url=';
-async function fetchYahoo(ticker){
-  for(const base of['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']){
-    try{const u=base+`/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1m&range=1d`;
-    const r=await fetch(PROXY+encodeURIComponent(u),{cache:'no-store'});
-    const d=await r.json();const p=d?.chart?.result?.[0]?.meta?.regularMarketPrice;if(p)return p;}catch(e){}}return null;}
-async function fetchUpbit(coin){try{const r=await fetch(`https://api.upbit.com/v1/ticker?markets=KRW-${coin.toUpperCase()}`);const d=await r.json();return d?.[0]?.trade_price??null;}catch(e){return null;}}
-async function loadUsdKrw(){const p=await fetchYahoo('USDKRW=X');if(p&&p>100){usdKrw=p;return;}const p2=await fetchYahoo('KRW=X');if(p2&&p2<1)usdKrw=1/p2;}
-async function loadPrices(){await loadUsdKrw();await Promise.all(portfolio.map(async h=>{let p=null;if(h.type==='crypto')p=await fetchUpbit(h.ticker);else if(h.type==='kr'){p=await fetchYahoo(h.ticker+'.KS');if(!p)p=await fetchYahoo(h.ticker+'.KQ');}else p=await fetchYahoo(h.ticker);if(p!==null)prices[h.id]=p;}));}
-function toKrw(h,p){return h.type==='us'?p*usdKrw:p;}
-function costKrw(h){return h.type==='us'?h.avgPrice*usdKrw:h.avgPrice;}
-function fmtKrw(v){const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억원';return Math.round(v).toLocaleString('ko-KR')+'원';}
-function fmtPrice(h,p){if(h.type==='us')return'$'+p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});if(p>=100)return'₩'+Math.round(p).toLocaleString('ko-KR');return'₩'+p.toFixed(4);}
-function render(){const c=document.getElementById('holdingsContainer');if(!portfolio.length){c.innerHTML='<div class="empty">보유 종목이 없어요.<br>+ 버튼을 눌러 추가하세요.</div>';document.getElementById('totalValue').textContent='₩ 0';document.getElementById('totalPnl').textContent='';return;}
-const groups={us:'🇺🇸 미국 주식',kr:'🇰🇷 한국 주식',crypto:'₿ 암호화폐'};let html='',totalVal=0,totalCost=0;
-for(const[type,label]of Object.entries(groups)){const items=portfolio.filter(h=>h.type===type);if(!items.length)continue;html+=`<div class="section-title">${label}</div>`;
-for(const h of items){const rawPrice=prices[h.id]??null;const krwPrice=rawPrice?toKrw(h,rawPrice):null;const val=krwPrice?krwPrice*h.qty:null;const cost=costKrw(h)*h.qty;const pnl=val!==null?val-cost:null;const pct=pnl!==null&&cost?pnl/cost*100:null;if(val){totalVal+=val;totalCost+=cost;}
-const cls=pnl>=0?'positive':'negative';const sign=pnl>=0?'+':'';
-html+=`<div class="card"><button class="del-btn" onclick="del('${h.id}')">×</button><div class="card-top"><div><div><span class="ticker">${h.ticker}</span></div><div class="name">${h.name||''}</div></div><div class="price-area"><div class="price-main">${rawPrice?fmtPrice(h,rawPrice):'<span class="spinner"></span>'}</div>${krwPrice?`<div class="price-krw">${fmtKrw(krwPrice)}</div>`:''}</div></div><div class="card-stats"><div><div class="stat-label">평가금액</div><div class="stat-value">${val?fmtKrw(val):'--'}</div></div><div><div class="stat-label">손익</div><div class="stat-value ${cls}">${pnl!==null?sign+fmtKrw(pnl):'--'}</div></div><div><div class="stat-label">수익률</div><div class="stat-value ${cls}">${pct!==null?sign+pct.toFixed(2)+'%':'--'}</div></div><div><div class="stat-label">보유수량</div><div class="stat-value">${h.qty}</div></div></div></div>`;}}
-c.innerHTML=html;const tPnl=totalVal-totalCost;const tPct=totalCost?tPnl/totalCost*100:0;const tcls=tPnl>=0?'positive':'negative';const ts=tPnl>=0?'+':'';
-document.getElementById('totalValue').textContent='₩ '+Math.round(totalVal).toLocaleString('ko-KR');
-document.getElementById('totalPnl').innerHTML=`<span class="${tcls}">${ts}${fmtKrw(tPnl)} (${ts}${tPct.toFixed(2)}%)</span>`;}
-async function refresh(){if(loading)return;loading=true;document.getElementById('refreshInfo').innerHTML='<span class="spinner"></span>업데이트 중...';await loadPrices();render();const now=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('refreshInfo').textContent=`마지막 업데이트: ${now}  |  1$ ≈ ₩${Math.round(usdKrw).toLocaleString()}`;loading=false;}
-setInterval(refresh,15000);refresh();
-function openModal(){document.getElementById('overlay').classList.add('open');}
-function closeModal(){document.getElementById('overlay').classList.remove('open');['iTicker','iName','iQty','iAvg'].forEach(id=>document.getElementById(id).value='');}
-function selectType(t,el){selType=t;document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');const lT=document.getElementById('lTicker'),iT=document.getElementById('iTicker'),hT=document.getElementById('hTicker'),lP=document.getElementById('lPrice'),hP=document.getElementById('hPrice');if(t==='us'){lT.textContent='티커 (예: AAPL, NVDA, TSLA)';iT.placeholder='AAPL';hT.textContent='미국 주식 심볼';lP.textContent='평균 매수가 ($)';hP.textContent='달러($)로 입력';}else if(t==='kr'){lT.textContent='종목코드 6자리';iT.placeholder='005930';hT.textContent='예: 005930(삼성), 000660(SK하이닉스)';lP.textContent='평균 매수가 (₩)';hP.textContent='원화(₩)로 입력';}else{lT.textContent='코인 심볼';iT.placeholder='BTC';hT.textContent='예: BTC, ETH, XRP, SOL';lP.textContent='평균 매수가 (₩)';hP.textContent='원화(₩)로 입력';}}
-function addHolding(){const ticker=document.getElementById('iTicker').value.trim().toUpperCase();const name=document.getElementById('iName').value.trim();const qty=parseFloat(document.getElementById('iQty').value);const avg=parseFloat(document.getElementById('iAvg').value);if(!ticker||isNaN(qty)||qty<=0||isNaN(avg)||avg<=0){alert('티커, 수량, 매수가를 모두 입력해주세요.');return;}portfolio.push({id:Date.now().toString(),ticker,name,type:selType,qty,avgPrice:avg});localStorage.setItem('domino_portfolio',JSON.stringify(portfolio));closeModal();refresh();}
-function del(id){if(!confirm('삭제할까요?'))return;portfolio=portfolio.filter(h=>h.id!==id);delete prices[id];localStorage.setItem('domino_portfolio',JSON.stringify(portfolio));render();}
+let portfolio = JSON.parse(localStorage.getItem('domino_portfolio') || '[]');
+let prices = {}, usdKrw = 1380, selType = 'us', loading = false;
+
+async function fetchT(url, ms=7000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, {signal: ctrl.signal, cache: 'no-store'});
+    return r;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+const PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+];
+
+async function fetchYahoo(ticker) {
+  const bases = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
+  for (const proxy of PROXIES) {
+    for (const base of bases) {
+      try {
+        const url = base + `/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1m&range=1d`;
+        const r = await fetchT(proxy(url));
+        const d = await r.json();
+        const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (p && p > 0) return p;
+      } catch(e) {}
+    }
+  }
+  return null;
+}
+
+async function fetchUpbit(coin) {
+  try {
+    const r = await fetchT(`https://api.upbit.com/v1/ticker?markets=KRW-${coin.toUpperCase()}`);
+    const d = await r.json();
+    return d?.[0]?.trade_price ?? null;
+  } catch(e) { return null; }
+}
+
+async function loadUsdKrw() {
+  try {
+    const p = await fetchYahoo('USDKRW=X');
+    if (p && p > 100) { usdKrw = p; return; }
+    const p2 = await fetchYahoo('KRW=X');
+    if (p2 && p2 < 1) usdKrw = 1 / p2;
+  } catch(e) {}
+}
+
+async function loadPrices() {
+  await loadUsdKrw();
+  await Promise.all(portfolio.map(async h => {
+    try {
+      let p = null;
+      if (h.type === 'crypto') p = await fetchUpbit(h.ticker);
+      else if (h.type === 'kr') {
+        p = await fetchYahoo(h.ticker + '.KS');
+        if (!p) p = await fetchYahoo(h.ticker + '.KQ');
+      } else {
+        p = await fetchYahoo(h.ticker);
+      }
+      if (p !== null) prices[h.id] = p;
+    } catch(e) {}
+  }));
+}
+
+function toKrw(h, p) { return h.type === 'us' ? p * usdKrw : p; }
+function costKrw(h) { return h.type === 'us' ? h.avgPrice * usdKrw : h.avgPrice; }
+function fmtKrw(v) {
+  const a = Math.abs(v);
+  if (a >= 1e8) return (v/1e8).toFixed(2) + '억원';
+  return Math.round(v).toLocaleString('ko-KR') + '원';
+}
+function fmtPrice(h, p) {
+  if (h.type === 'us') return '$' + p.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  if (p >= 100) return '₩' + Math.round(p).toLocaleString('ko-KR');
+  return '₩' + p.toFixed(4);
+}
+
+function render() {
+  const c = document.getElementById('holdingsContainer');
+  if (!portfolio.length) {
+    c.innerHTML = '<div class="empty">보유 종목이 없어요.<br>+ 버튼을 눌러 추가하세요.</div>';
+    document.getElementById('totalValue').textContent = '₩ 0';
+    document.getElementById('totalPnl').textContent = '';
+    return;
+  }
+  const groups = {us:'🇺🇸 미국 주식', kr:'🇰🇷 한국 주식', crypto:'₿ 암호화폐'};
+  let html = '', totalVal = 0, totalCost = 0;
+  for (const [type, label] of Object.entries(groups)) {
+    const items = portfolio.filter(h => h.type === type);
+    if (!items.length) continue;
+    html += `<div class="section-title">${label}</div>`;
+    for (const h of items) {
+      const rawPrice = prices[h.id] ?? null;
+      const krwPrice = rawPrice ? toKrw(h, rawPrice) : null;
+      const val = krwPrice ? krwPrice * h.qty : null;
+      const cost = costKrw(h) * h.qty;
+      const pnl = val !== null ? val - cost : null;
+      const pct = pnl !== null && cost ? pnl / cost * 100 : null;
+      if (val) { totalVal += val; totalCost += cost; }
+      const cls = (pnl ?? 0) >= 0 ? 'positive' : 'negative';
+      const sign = (pnl ?? 0) >= 0 ? '+' : '';
+      html += `<div class="card">
+        <button class="del-btn" onclick="del('${h.id}')">×</button>
+        <div class="card-top">
+          <div><div><span class="ticker">${h.ticker}</span></div><div class="name">${h.name||''}</div></div>
+          <div class="price-area">
+            <div class="price-main">${rawPrice ? fmtPrice(h, rawPrice) : '<span class="spinner"></span>'}</div>
+            ${krwPrice ? `<div class="price-krw">${fmtKrw(krwPrice)}</div>` : ''}
+          </div>
+        </div>
+        <div class="card-stats">
+          <div><div class="stat-label">평가금액</div><div class="stat-value">${val ? fmtKrw(val) : '--'}</div></div>
+          <div><div class="stat-label">손익</div><div class="stat-value ${cls}">${pnl !== null ? sign+fmtKrw(pnl) : '--'}</div></div>
+          <div><div class="stat-label">수익률</div><div class="stat-value ${cls}">${pct !== null ? sign+pct.toFixed(2)+'%' : '--'}</div></div>
+          <div><div class="stat-label">보유수량</div><div class="stat-value">${h.qty}</div></div>
+        </div>
+      </div>`;
+    }
+  }
+  c.innerHTML = html;
+  const tPnl = totalVal - totalCost;
+  const tPct = totalCost ? tPnl / totalCost * 100 : 0;
+  const tcls = tPnl >= 0 ? 'positive' : 'negative';
+  const ts = tPnl >= 0 ? '+' : '';
+  document.getElementById('totalValue').textContent = '₩ ' + Math.round(totalVal).toLocaleString('ko-KR');
+  document.getElementById('totalPnl').innerHTML = `<span class="${tcls}">${ts}${fmtKrw(tPnl)} (${ts}${tPct.toFixed(2)}%)</span>`;
+}
+
+async function doRefresh() {
+  if (loading) return;
+  loading = true;
+  document.getElementById('refreshInfo').innerHTML = '<span class="spinner"></span>업데이트 중...';
+  try {
+    await loadPrices();
+    render();
+    const now = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    document.getElementById('refreshInfo').textContent = `마지막 업데이트: ${now}  |  1$ ≈ ₩${Math.round(usdKrw).toLocaleString()}`;
+  } catch(e) {
+    document.getElementById('refreshInfo').textContent = '업데이트 오류. 다시 시도 중...';
+    render();
+  } finally {
+    loading = false;
+  }
+}
+
+setInterval(doRefresh, 20000);
+doRefresh();
+
+function openModal() { document.getElementById('overlay').classList.add('open'); }
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  ['iTicker','iName','iQty','iAvg'].forEach(id => document.getElementById(id).value = '');
+}
+function selectType(t, el) {
+  selType = t;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const lT=document.getElementById('lTicker'), iT=document.getElementById('iTicker');
+  const hT=document.getElementById('hTicker'), lP=document.getElementById('lPrice'), hP=document.getElementById('hPrice');
+  if (t==='us') { lT.textContent='티커 (예: AAPL, NVDA, TSLA)'; iT.placeholder='AAPL'; hT.textContent='미국 주식 심볼'; lP.textContent='평균 매수가 ($)'; hP.textContent='달러($)로 입력'; }
+  else if (t==='kr') { lT.textContent='종목코드 6자리'; iT.placeholder='005930'; hT.textContent='예: 005930(삼성), 000660(SK하이닉스)'; lP.textContent='평균 매수가 (₩)'; hP.textContent='원화(₩)로 입력'; }
+  else { lT.textContent='코인 심볼'; iT.placeholder='BTC'; hT.textContent='예: BTC, ETH, XRP, SOL'; lP.textContent='평균 매수가 (₩)'; hP.textContent='원화(₩)로 입력'; }
+}
+function addHolding() {
+  const ticker = document.getElementById('iTicker').value.trim().toUpperCase();
+  const name = document.getElementById('iName').value.trim();
+  const qty = parseFloat(document.getElementById('iQty').value);
+  const avg = parseFloat(document.getElementById('iAvg').value);
+  if (!ticker || isNaN(qty) || qty <= 0 || isNaN(avg) || avg <= 0) { alert('티커, 수량, 매수가를 모두 입력해주세요.'); return; }
+  portfolio.push({id: Date.now().toString(), ticker, name, type: selType, qty, avgPrice: avg});
+  localStorage.setItem('domino_portfolio', JSON.stringify(portfolio));
+  closeModal();
+  doRefresh();
+}
+function del(id) {
+  if (!confirm('삭제할까요?')) return;
+  portfolio = portfolio.filter(h => h.id !== id);
+  delete prices[id];
+  localStorage.setItem('domino_portfolio', JSON.stringify(portfolio));
+  render();
+}
 </script>
 </body>
 </html>
