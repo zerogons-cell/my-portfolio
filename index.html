@@ -27,7 +27,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .card-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .stat-label{font-size:11px;color:var(--text2)}
 .stat-value{font-size:14px;font-weight:600;margin-top:3px}
-.del-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--border);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:6px}
+.card-btns{position:absolute;top:8px;right:8px;display:flex;gap:2px}
+.del-btn,.edit-btn{background:none;border:none;font-size:16px;cursor:pointer;padding:4px 7px;border-radius:8px;touch-action:manipulation}
+.del-btn{color:var(--border)}.edit-btn{color:var(--text2);font-size:14px}
+.form-input:disabled{opacity:.45;cursor:not-allowed}
 .fab{position:fixed;bottom:100px;right:20px;width:58px;height:58px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 4px 24px rgba(88,166,255,.45);display:flex;align-items:center;justify-content:center;z-index:200}
 .overlay{display:none;pointer-events:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end}
 .overlay.open{display:flex;pointer-events:auto}
@@ -102,7 +105,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <script>
 let portfolio = JSON.parse(localStorage.getItem('domino_portfolio') || '[]');
-let prices = {}, usdKrw = 1380, selType = 'us', loading = false;
+let prices = {}, usdKrw = 1380, selType = 'us', loading = false, editId = null;
 
 async function fetchT(url, ms=7000) {
   const ctrl = new AbortController();
@@ -208,7 +211,10 @@ function render() {
       const cls = (pnl ?? 0) >= 0 ? 'positive' : 'negative';
       const sign = (pnl ?? 0) >= 0 ? '+' : '';
       html += `<div class="card">
-        <button class="del-btn" onclick="del('${h.id}')">×</button>
+        <div class="card-btns">
+          <button class="edit-btn" onclick="openEdit('${h.id}')">✏️</button>
+          <button class="del-btn" onclick="del('${h.id}')">×</button>
+        </div>
         <div class="card-top">
           <div><div><span class="ticker">${h.ticker}</span></div><div class="name">${h.name||''}</div></div>
           <div class="price-area">
@@ -266,11 +272,8 @@ async function lookupName() {
   const nameEl = document.getElementById('iName');
   const statusEl = document.getElementById('nameStatus');
   if (!ticker) { statusEl.textContent = ''; return; }
-
   statusEl.textContent = '조회 중...';
-
   const bases = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
-
   async function trySymbol(symbol) {
     for (const proxy of PROXIES) {
       for (const base of bases) {
@@ -286,7 +289,6 @@ async function lookupName() {
     }
     return null;
   }
-
   try {
     let name = null;
     if (selType === 'us') {
@@ -303,7 +305,6 @@ async function lookupName() {
       } catch(e) {}
       if (!name) name = await trySymbol(ticker + '-USD');
     }
-
     if (name) {
       nameEl.value = name;
       statusEl.textContent = '✓ 자동완성';
@@ -312,16 +313,47 @@ async function lookupName() {
       statusEl.textContent = '직접 입력하세요';
       setTimeout(() => statusEl.textContent = '', 2000);
     }
-  } catch(e) {
-    statusEl.textContent = '';
-  }
+  } catch(e) { statusEl.textContent = ''; }
 }
 
-function openModal() { document.getElementById('overlay').classList.add('open'); }
+function openModal() {
+  editId = null;
+  document.querySelector('.modal-title').textContent = '종목 추가';
+  document.querySelector('.submit-btn').textContent = '추가하기';
+  document.getElementById('iTicker').disabled = false;
+  document.querySelectorAll('.type-btn').forEach(b => { b.style.pointerEvents=''; b.style.opacity=''; });
+  document.getElementById('overlay').classList.add('open');
+}
+
+function openEdit(id) {
+  const h = portfolio.find(h => h.id === id);
+  if (!h) return;
+  editId = id;
+  document.querySelector('.modal-title').textContent = '종목 수정';
+  document.querySelector('.submit-btn').textContent = '수정 완료';
+  document.getElementById('iTicker').value = h.ticker;
+  document.getElementById('iTicker').disabled = true;
+  document.getElementById('iName').value = h.name || '';
+  document.getElementById('iQty').value = h.qty;
+  document.getElementById('iAvg').value = h.avgPrice;
+  selType = h.type;
+  document.querySelectorAll('.type-btn').forEach((b,i) => {
+    const types = ['us','kr','crypto'];
+    b.classList.toggle('active', types[i] === h.type);
+    b.style.pointerEvents = 'none';
+    b.style.opacity = types[i] === h.type ? '' : '0.35';
+  });
+  document.getElementById('nameStatus').textContent = '';
+  document.getElementById('overlay').classList.add('open');
+}
+
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   ['iTicker','iName','iQty','iAvg'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('nameStatus').textContent = '';
+  document.getElementById('iTicker').disabled = false;
+  document.querySelectorAll('.type-btn').forEach(b => { b.style.pointerEvents=''; b.style.opacity=''; });
+  editId = null;
   clearTimeout(nameTimer);
 }
 function selectType(t, el) {
@@ -340,7 +372,12 @@ function addHolding() {
   const qty = parseFloat(document.getElementById('iQty').value);
   const avg = parseFloat(document.getElementById('iAvg').value);
   if (!ticker || isNaN(qty) || qty <= 0 || isNaN(avg) || avg <= 0) { alert('티커, 수량, 매수가를 모두 입력해주세요.'); return; }
-  portfolio.push({id: Date.now().toString(), ticker, name, type: selType, qty, avgPrice: avg});
+  if (editId) {
+    const idx = portfolio.findIndex(h => h.id === editId);
+    if (idx !== -1) { portfolio[idx].qty = qty; portfolio[idx].avgPrice = avg; portfolio[idx].name = name; }
+  } else {
+    portfolio.push({id: Date.now().toString(), ticker, name, type: selType, qty, avgPrice: avg});
+  }
   localStorage.setItem('domino_portfolio', JSON.stringify(portfolio));
   closeModal();
   doRefresh();
