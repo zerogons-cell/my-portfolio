@@ -76,12 +76,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       </div>
       <div class="form-group">
         <label class="form-label" id="lTicker">티커 (예: AAPL)</label>
-        <input class="form-input" id="iTicker" placeholder="AAPL" autocapitalize="characters">
+        <input class="form-input" id="iTicker" placeholder="AAPL" autocapitalize="characters" oninput="onTickerInput()">
         <div class="hint" id="hTicker">미국 주식 심볼을 입력하세요</div>
       </div>
       <div class="form-group">
-        <label class="form-label">종목명 (선택)</label>
-        <input class="form-input" id="iName" placeholder="애플">
+        <label class="form-label">종목명 <span id="nameStatus" style="color:var(--accent);font-size:11px"></span></label>
+        <input class="form-input" id="iName" placeholder="입력하거나 자동완성 대기 중...">
       </div>
       <div class="form-group">
         <label class="form-label">보유 수량</label>
@@ -254,10 +254,75 @@ async function doRefresh() {
 setInterval(doRefresh, 20000);
 doRefresh();
 
+// ===== 티커 → 종목명 자동조회 =====
+let nameTimer = null;
+function onTickerInput() {
+  clearTimeout(nameTimer);
+  nameTimer = setTimeout(lookupName, 700);
+}
+
+async function lookupName() {
+  const ticker = document.getElementById('iTicker').value.trim().toUpperCase();
+  const nameEl = document.getElementById('iName');
+  const statusEl = document.getElementById('nameStatus');
+  if (!ticker) { statusEl.textContent = ''; return; }
+
+  statusEl.textContent = '조회 중...';
+
+  const bases = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
+
+  async function trySymbol(symbol) {
+    for (const proxy of PROXIES) {
+      for (const base of bases) {
+        try {
+          const url = base + `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+          const r = await fetchT(proxy(url), 6000);
+          const d = await r.json();
+          const meta = d?.chart?.result?.[0]?.meta;
+          const name = meta?.shortName || meta?.longName;
+          if (name) return name;
+        } catch(e) {}
+      }
+    }
+    return null;
+  }
+
+  try {
+    let name = null;
+    if (selType === 'us') {
+      name = await trySymbol(ticker);
+    } else if (selType === 'kr') {
+      name = await trySymbol(ticker + '.KS');
+      if (!name) name = await trySymbol(ticker + '.KQ');
+    } else {
+      try {
+        const r = await fetchT('https://api.upbit.com/v1/market/all?isDetails=false', 5000);
+        const list = await r.json();
+        const found = list.find(m => m.market === `KRW-${ticker}`);
+        if (found) name = found.korean_name;
+      } catch(e) {}
+      if (!name) name = await trySymbol(ticker + '-USD');
+    }
+
+    if (name) {
+      nameEl.value = name;
+      statusEl.textContent = '✓ 자동완성';
+      setTimeout(() => statusEl.textContent = '', 2000);
+    } else {
+      statusEl.textContent = '직접 입력하세요';
+      setTimeout(() => statusEl.textContent = '', 2000);
+    }
+  } catch(e) {
+    statusEl.textContent = '';
+  }
+}
+
 function openModal() { document.getElementById('overlay').classList.add('open'); }
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   ['iTicker','iName','iQty','iAvg'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nameStatus').textContent = '';
+  clearTimeout(nameTimer);
 }
 function selectType(t, el) {
   selType = t;
